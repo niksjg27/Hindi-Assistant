@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import socket
 import sys
- 
+import math 
 from time import time
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC
@@ -50,7 +50,7 @@ def responseFunction(buf,ans):
     return(ans_arr)
 
 ans=""
-HOST = '192.168.0.8' #this is your localhost
+HOST = '192.168.0.6' #this is your localhost
 PORT = 1234
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print ('socket created')
@@ -65,7 +65,7 @@ print ('Socket Bind Success!')
 features_train, labels_train = preprocess()
 
 #clf = GaussianNB()
-clf = SVC(kernel='linear')
+clf = SVC(kernel='linear',probability=True)
 clf.fit(features_train,labels_train)
 #test = raw_input("Enter test data: ")
 #test_data = process([test])
@@ -80,27 +80,37 @@ while 1:
     buf = conn.recv(1024).decode()
     test_data = process([buf])
     pred = clf.predict(test_data)
-    if "call" in pred:
-        ans="call"
-    if "msg" in pred:
-        ans="msg"
-    ans_arr=responseFunction(buf,ans)
-    functionName=ans_arr[0]
-    functionName=functionName
+    pred1= clf.predict_proba(test_data)
+    pred1=pred1.tolist()
+    temp1 = (max(pred1[0][0],pred1[0][1]))
+    if temp1<=0.85:
+        print ("NOT A vALID INPUT")
+        conn.send(("None_None_None\n").encode())
+    else:
+        if "call" in pred:
+            ans="call"
+        if "msg" in pred:
+            ans="msg"
+        ans_arr=responseFunction(buf,ans)
+        functionName=ans_arr[0]
+        functionName=functionName
 
-    objectName=ans_arr[1]
-    objectName=objectName
+        objectName=ans_arr[1]
+        objectName=objectName
 
-    bodyName=str(ans_arr[2])
-    bodyName=bodyName+'\n'
-    conn.send((functionName+'_'+objectName+'_'+bodyName).encode())
+        bodyName=str(ans_arr[2])
+        bodyName=bodyName+'\n'
+        conn.send((functionName+'_'+objectName+'_'+bodyName).encode())
 
+        
+        
+        print ("the data sent back to the client is")
+        print (functionName)
+        print (objectName)
+        print (bodyName)
+        print (pred1)
     
-    
-    print ("the data sent back to the client is")
-    print (functionName)
-    print (objectName)
-    print (bodyName)
+
 s.close()
 
 #print pred
