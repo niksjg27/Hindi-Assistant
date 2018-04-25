@@ -9,6 +9,16 @@ from sklearn.metrics import accuracy_score
 from help import preprocess
 from help import process
 
+
+def bagofwords(text):
+    negative = ["nahi","mat","na"]
+    text = text.lower().split()
+    print(text)
+    for each in text:
+        if each in negative:
+            return True
+    return False
+
 def responseFunction(buf,ans):
     ans_arr=[]
     buf=buf.split()
@@ -29,6 +39,7 @@ def responseFunction(buf,ans):
 
     object_name=buf[i:j]
     object_name=' '.join(object_name)
+    
 
 
     
@@ -50,7 +61,7 @@ def responseFunction(buf,ans):
     return(ans_arr)
 
 ans=""
-HOST = '192.168.0.8' #this is your localhost
+HOST = '192.168.0.5' #this is your localhost
 PORT = 1234
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print ('socket created')
@@ -65,7 +76,7 @@ print ('Socket Bind Success!')
 features_train, labels_train = preprocess()
 
 #clf = GaussianNB()
-clf = SVC(kernel='linear')
+clf = SVC(kernel='linear',probability=True)
 clf.fit(features_train,labels_train)
 #test = raw_input("Enter test data: ")
 #test_data = process([test])
@@ -78,22 +89,38 @@ while 1:
     conn, addr = s.accept()
     print ('Connect with ' + addr[0] + ':' + str(addr[1]))
     buf = conn.recv(1024).decode()
-    test_data = process([buf])
-    pred = clf.predict(test_data)
-    if "call" in pred:
-        ans="call"
-    if "msg" in pred:
-        ans="msg"
-    ans_arr=responseFunction(buf,ans)
-    functionName=ans_arr[0]
-    functionName=functionName
+    actual = bagofwords(buf)
+    if(actual == False):
+        test_data = process([buf])
+        pred = clf.predict(test_data)
+        prob = clf.predict_proba(test_data)
+        prob = prob.tolist()
+        temp1 = max(prob[0][0],prob[0][1])
+        print(temp1)
+        if(temp1 >= 0.85):
+            if "call" in pred:
+                ans="call"
+            if "msg" in pred:
+                ans="msg"
+            ans_arr=responseFunction(buf,ans)
+            functionName=ans_arr[0]
+            functionName=functionName
 
-    objectName=ans_arr[1]
-    objectName=objectName
+            objectName=ans_arr[1]
+            objectName=objectName
 
-    bodyName=str(ans_arr[2])
-    bodyName=bodyName+'\n'
+            bodyName=str(ans_arr[2])
+            bodyName=bodyName+'\n'
+        else:
+            functionName = "None"
+            objectName = "None"
+            bodyName = "None\n"
+    else:
+        functionName = "None"
+        objectName = "None"
+        bodyName = "None\n"
     conn.send((functionName+'_'+objectName+'_'+bodyName).encode())
+        
 
     
     

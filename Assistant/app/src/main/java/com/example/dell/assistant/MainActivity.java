@@ -226,6 +226,10 @@ public class MainActivity extends Activity {
                                 startActivity(phoneCallIntent);
 
                             }
+                        else{
+                            tts.setLanguage(new Locale("hi"));
+                            tts.speak(nameToFind + "आपकी संपर्क सूची में नहीं है!", TextToSpeech.QUEUE_FLUSH, null);
+                        }
 
 
                         }
@@ -247,6 +251,10 @@ public class MainActivity extends Activity {
             smsIntent.putExtra("sms_body", body);
             startActivity(smsIntent);
 
+        }
+        else{
+            tts.setLanguage(new Locale("hi"));
+            tts.speak(nameToFind + "आपकी संपर्क सूची में नहीं है!", TextToSpeech.QUEUE_FLUSH, null);
         }
 
 
@@ -309,6 +317,25 @@ public class MainActivity extends Activity {
                                 break;
 
                 default:        result.setText(s[0]);
+                                tts.setLanguage(new Locale("hi"));
+                                tts.speak("शमा कीजिए । मैंं आपकी क्या सहायता कर सकती हूँ ।", TextToSpeech.QUEUE_FLUSH, null);
+                                Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US");
+                                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
+                                intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, "en-US");
+                                intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
+                                try {  Thread.sleep(4500);
+                                }
+                                catch (Exception e ){
+                                    e.printStackTrace();
+                                }
+
+                                try {
+                                    startActivityForResult(intent, 100);
+                                } catch (Exception e) {
+                                    Log.e("test", "Error");
+                                }
             }
         }
 
@@ -320,7 +347,7 @@ public class MainActivity extends Activity {
             String res = "";
             String [] parts = null;
             try{
-                s = new Socket("192.168.43.204",1234);
+                s = new Socket("192.168.0.5",1234);
 //                in = new DataInputStream(s.getInputStream());
 //                out = new DataOutputStream(s.getOutputStream());
 //                out.writeBytes(msg1);
