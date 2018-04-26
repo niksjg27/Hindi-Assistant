@@ -6,6 +6,8 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.app.Activity;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -26,6 +28,8 @@ import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import org.json.JSONArray;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -38,6 +42,7 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 
 import static android.Manifest.permission.READ_CONTACTS;
@@ -50,14 +55,50 @@ public class MainActivity extends Activity {
     TextToSpeech tts;
     ListView lv;
     ArrayList<String> contactList;
-    Socket s;
+    Socket s,s1;
     String body, obj1;
     DataInputStream in;
     DataOutputStream out;
     Cursor cursor;
     HashMap<String,String> ContactMap;
-
     private static final int REQUEST_READ_CONTACTS = 444;
+    List<ApplicationInfo> installedApps = new ArrayList<ApplicationInfo>();
+    ArrayList<String>appname=new ArrayList<>();
+
+    JSONArray jsArray = null;
+
+    public void populateApps() {
+        PackageManager pm = getPackageManager();
+
+        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+
+        for(ApplicationInfo app : apps) {
+
+                installedApps.add(app);
+
+        }
+        String name="";
+        int c = installedApps.size();
+        for(int i=0;i<c;i++){
+            appname.add((String) pm.getApplicationLabel(installedApps.get(i)));
+            }
+        jsArray = new JSONArray(appname);
+        System.out.println(jsArray);
+        try {
+            s1 = new Socket("192.168.43.141",55555);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        PrintWriter outtoserver = null;
+        try {
+            outtoserver = new PrintWriter(new OutputStreamWriter(s1.getOutputStream()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        outtoserver.print(jsArray.toString());
+        outtoserver.flush();
+
+    }
 
     public void populateContacts() {
 
@@ -103,6 +144,8 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 populateContacts();
+                populateApps();
+
             }
         }).start();
 
@@ -212,23 +255,27 @@ public class MainActivity extends Activity {
         int size=ContactMap.size();
         String temp=Integer.toString(size);
         Log.d("Test",temp);
-                            boolean a = (ContactMap.containsKey(nameToFind));
-                        if (a) {
-                                final int REQUEST_PHONE_CALL = 1;
-                                String b = "tel:";
-                                String phoneCallUri = b + ContactMap.get(nameToFind);
-                                Intent phoneCallIntent = new Intent(Intent.ACTION_CALL);
-                                phoneCallIntent.setData(Uri.parse(phoneCallUri));
-                                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-                                    ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.CALL_PHONE},REQUEST_PHONE_CALL);
-                                    return;
-                                }
-                                startActivity(phoneCallIntent);
+        boolean a = (ContactMap.containsKey(nameToFind));
+        if (a) {
+            final int REQUEST_PHONE_CALL = 1;
+            String b = "tel:";
+            String phoneCallUri = b + ContactMap.get(nameToFind);
+            Intent phoneCallIntent = new Intent(Intent.ACTION_CALL);
+            phoneCallIntent.setData(Uri.parse(phoneCallUri));
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.CALL_PHONE},REQUEST_PHONE_CALL);
+                return;
+            }
+            startActivity(phoneCallIntent);
 
-                            }
+        }
+        else{
+            tts.setLanguage(new Locale("hi"));
+            tts.speak(nameToFind + "आपकी संपर्क सूची में नहीं है!", TextToSpeech.QUEUE_FLUSH, null);
+        }
 
 
-                        }
+    }
 
     public void doMsg(String nameToFind, String body) {
         if (!mayRequestContacts()) {
@@ -248,6 +295,10 @@ public class MainActivity extends Activity {
             startActivity(smsIntent);
 
         }
+        else{
+            tts.setLanguage(new Locale("hi"));
+            tts.speak(nameToFind + "आपकी संपर्क सूची में नहीं है!", TextToSpeech.QUEUE_FLUSH, null);
+        }
 
 
     }
@@ -258,18 +309,18 @@ public class MainActivity extends Activity {
         protected void onPostExecute(final String[] s) {
             switch (s[0]){
                 case "call":
-                                new Thread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        doCall(s[1]);
-                                    }
-                                }).start();
-                                break;
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            doCall(s[1]);
+                        }
+                    }).start();
+                    break;
                 case "msg":
-                                if(s[2].equals("None"))
-                                {
-                                    obj1 = s[1];
-                                    Log.d("Test","Inside second tts");
+                    if(s[2].equals("None"))
+                    {
+                        obj1 = s[1];
+                        Log.d("Test","Inside second tts");
 
 
 
@@ -281,34 +332,53 @@ public class MainActivity extends Activity {
 //                                        e.printStackTrace();
 //                                    }
 
-                                    tts.setLanguage(new Locale("hi"));
-                                    tts.speak("क्या संदेश भेजना है।", TextToSpeech.QUEUE_FLUSH, null);
-                                        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-                                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US");
-                                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
-                                        intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, "en-US");
-                                        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
-                                    try {  Thread.sleep(2000);
-                                    }
-                                    catch (Exception e ){
-                                        e.printStackTrace();
-                                    }
-                                    try {
-                                        startActivityForResult(intent, 200);
-                                    } catch (Exception e) {
-                                        e.printStackTrace();                                    }
+                        tts.setLanguage(new Locale("hi"));
+                        tts.speak("क्या संदेश भेजना है।", TextToSpeech.QUEUE_FLUSH, null);
+                        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US");
+                        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
+                        intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, "en-US");
+                        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
+                        try {  Thread.sleep(2000);
+                        }
+                        catch (Exception e ){
+                            e.printStackTrace();
+                        }
+                        try {
+                            startActivityForResult(intent, 200);
+                        } catch (Exception e) {
+                            e.printStackTrace();                                    }
 
 
-                                }
-                                else{
-                                    doMsg(s[1],s[2]);
-                                }
+                    }
+                    else{
+                        doMsg(s[1],s[2]);
+                    }
 
 
-                                break;
+                    break;
 
                 default:        result.setText(s[0]);
+                    tts.setLanguage(new Locale("hi"));
+                    tts.speak("शमा कीजिए । मैंं आपकी क्या सहायता कर सकती हूँ ।", TextToSpeech.QUEUE_FLUSH, null);
+                    Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US");
+                    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
+                    intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, "en-US");
+                    intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
+                    try {  Thread.sleep(4500);
+                    }
+                    catch (Exception e ){
+                        e.printStackTrace();
+                    }
+
+                    try {
+                        startActivityForResult(intent, 100);
+                    } catch (Exception e) {
+                        Log.e("test", "Error");
+                    }
             }
         }
 
@@ -320,14 +390,9 @@ public class MainActivity extends Activity {
             String res = "";
             String [] parts = null;
             try{
-                s = new Socket("192.168.43.204",1234);
-//                in = new DataInputStream(s.getInputStream());
-//                out = new DataOutputStream(s.getOutputStream());
-//                out.writeBytes(msg1);
-//                out.flush();
-//                res = in.readLine();
+                s = new Socket("172.16.181.27",55555);
                 PrintWriter outtoserver = new PrintWriter(new OutputStreamWriter(s.getOutputStream()));
-                outtoserver.print(msg1);
+                outtoserver.print(jsArray.toString());
                 outtoserver.flush();
                 BufferedReader in1 = new BufferedReader(new InputStreamReader(s.getInputStream()));
                 res = in1.readLine();
@@ -345,6 +410,3 @@ public class MainActivity extends Activity {
         }
     }
 }
-
-
-
