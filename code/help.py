@@ -9,7 +9,7 @@ from sklearn.feature_selection import SelectPercentile, f_classif
 vectorizer = TfidfVectorizer(sublinear_tf = True, max_df=0.9,stop_words=['ko'],lowercase=True)
 selector = SelectPercentile(f_classif, percentile=10)
 
-def preprocess(words_file = "dataset-final.txt",actions_file = "label-dataset.txt"):
+def preprocess(words_file = "new_data.txt",actions_file = "new_label.txt"):
     actions_file_handler = open(actions_file, "r", encoding="utf-8")
     actions = actions_file_handler.read().split('\n')
     del(actions[-1])  
@@ -21,7 +21,7 @@ def preprocess(words_file = "dataset-final.txt",actions_file = "label-dataset.tx
     words_file_handler.close()
     features_train, features_test, labels_train, labels_test = cross_validation.train_test_split(word_data, actions, test_size=0.1, random_state=40)
     
-    print (features_test)
+    #print (features_test)
     
     
   
@@ -32,7 +32,7 @@ def preprocess(words_file = "dataset-final.txt",actions_file = "label-dataset.tx
     selector.fit(features_train_transformed, labels_train)
     features_train_transformed = selector.transform(features_train_transformed).toarray()
     features_test_transformed  = selector.transform(features_test_transformed).toarray()
-
+    #print("Labels are : ", labels_train)
     return features_train_transformed, labels_train
 
     

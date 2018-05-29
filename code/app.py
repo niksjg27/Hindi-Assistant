@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import socket
 import sys
+import ast
  
 from time import time
 from sklearn.naive_bayes import GaussianNB
@@ -8,7 +9,6 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 from help import preprocess
 from help import process
-
 
 def bagofwords(text):
     negative = ["nahi","mat","na"]
@@ -19,10 +19,33 @@ def bagofwords(text):
             return True
     return False
 
-def responseFunction(buf,ans):
+def responseFunction(buf,ans,apps_list):
     ans_arr=[]
+    buf1 = buf.lower().split()
     buf=buf.split()
-    
+
+    if(ans == "app"):
+        l1 = ast.literal_eval(apps_list)
+        l2 = []
+        for each in l1:
+            l2.append(each.lower())
+        print(l2)
+        for each in buf1:
+            if each in l2:
+                ans_arr.append(ans)
+                ans_arr.append(each)
+                ans_arr.append("None")
+                break
+        else:
+            ans_arr.append(ans)
+            ans_arr.append("None")
+            ans_arr.append("None")
+            
+
+        return(ans_arr)
+                   
+
+   
     i=0
     j=0
     for i in range(len(buf)):
@@ -61,7 +84,7 @@ def responseFunction(buf,ans):
     return(ans_arr)
 
 ans=""
-HOST = '192.168.0.5' #this is your localhost
+HOST = '192.168.43.204' #this is your localhost
 PORT = 1234
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print ('socket created')
@@ -84,45 +107,50 @@ clf.fit(features_train,labels_train)
 #pred = clf.predict(test_data)
 
 s.listen(10)
+
+con,addr = s.accept()
+apps_list = con.recv(10000).decode()
+print(apps_list)
 print ('Socket is now listening')
 while 1:
     conn, addr = s.accept()
     print ('Connect with ' + addr[0] + ':' + str(addr[1]))
     buf = conn.recv(1024).decode()
-    actual = bagofwords(buf)
-    if(actual == False):
-        test_data = process([buf])
-        pred = clf.predict(test_data)
-        prob = clf.predict_proba(test_data)
-        prob = prob.tolist()
-        temp1 = max(prob[0][0],prob[0][1])
-        print(temp1)
-        if(temp1 >= 0.85):
-            if "call" in pred:
-                ans="call"
-            if "msg" in pred:
-                ans="msg"
-            ans_arr=responseFunction(buf,ans)
-            functionName=ans_arr[0]
-            functionName=functionName
+    
+    print("Data received: ",buf)
 
-            objectName=ans_arr[1]
-            objectName=objectName
+    test_data = process([buf])
+    pred = clf.predict(test_data)
+    prob = clf.predict_proba(test_data)
+    prob = prob.tolist()
+    print("Probability: ",prob)
+    temp1 = max(prob[0][0],prob[0][1], prob[0][2])
+    print(temp1)
 
-            bodyName=str(ans_arr[2])
-            bodyName=bodyName+'\n'
-        else:
+    if(temp1 >= 0.85):
+        ans = pred[0]
+        print("Prediction: ",pred)
+        ans_arr=responseFunction(buf,ans,apps_list)
+        functionName=ans_arr[0]
+        
+        objectName=ans_arr[1]
+        
+
+        bodyName=str(ans_arr[2])
+        a = buf.replace(" ki "+bodyName, "")
+        flag = bagofwords(a)
+        if(flag==True):
             functionName = "None"
             objectName = "None"
-            bodyName = "None\n"
+            bodyName = "None"
+        bodyName=bodyName+'\n'
+        conn.send((functionName+'_'+objectName+'_'+bodyName).encode())
     else:
         functionName = "None"
         objectName = "None"
-        bodyName = "None\n"
-    conn.send((functionName+'_'+objectName+'_'+bodyName).encode())
-        
-
-    
+        bodyName = "None"
+        conn.send((buf+"\n").encode())    
+      
     
     print ("the data sent back to the client is")
     print (functionName)
